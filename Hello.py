@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 from models.gan import GAN
-from models.lof import LOF
+from models.lof import lof
 
 def load_data_for_train_test(df):
     X_data = df.iloc[:, :-1]
@@ -39,7 +39,7 @@ def visualize_res(selected_model, uploaded_file):
             gan_model.visualize()
 
         elif selected_model == 'LOF':
-            lof_model = LOF(train_data, test_data, y_true)
+            lof_model = lof(train_data, test_data, y_true)
             lof_model.visualize()
 
 
