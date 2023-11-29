@@ -1,16 +1,10 @@
-import streamlit as st
-
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 
 from sklearn import metrics
 
 from keras.layers import Input, Dense, Activation, BatchNormalization
 from keras.models import Model, Sequential
 from keras.optimizers.legacy import Adam
-
-# from main import df_shape
 
 class GAN():
     def __init__(self, df_shape, train_data, test_data, y_true) -> None:
@@ -120,81 +114,28 @@ class GAN():
 
             g_loss = self.gan.train_on_batch(noise, valid)
 
-            print("%d [D loss: %f, acc: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+            # print("%d [D loss: %f, acc: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
     # testing on discriminator
     def test(self):
         preds = self.discriminator.predict(self.test_data)
-        self.y_pred = np.array(preds)
+        y_pred = np.array(preds)
 
         per = np.percentile(preds, 10)
-        inds = (self.y_pred > per)
-        inds_comp = (self.y_pred <= per)
+        inds = (y_pred > per)
+        inds_comp = (y_pred <= per)
 
-        self.y_pred[inds] = 0
-        self.y_pred[inds_comp] = 1
+        y_pred[inds] = 0
+        y_pred[inds_comp] = 1
 
-        self.precision_gan, self.recall_gan, self.f1_score_gan, _ = metrics.precision_recall_fscore_support(self.y_true, self.y_pred, average='binary')
-        self.fpr, self.tpr, _ = metrics.roc_curve(self.y_true, self.y_pred)
-        self.auc_roc_gan = metrics.auc(self.fpr, self.tpr)
+        precision_gan, recall_gan, f1_score_gan, _ = metrics.precision_recall_fscore_support(self.y_true, y_pred, average='binary')
+        fpr, tpr, _ = metrics.roc_curve(self.y_true, y_pred)
+        auc_roc_gan = metrics.auc(fpr, tpr)
 
         print("Metrics: ")
-        print('Precision: {:.4f}'.format(self.precision_gan))
-        print('Recall: {:.4f}'.format(self.recall_gan))
-        print('F1 score: {:.4f}'.format(self.f1_score_gan))
-        print('AUC-ROC socre: {:.4f}'.format(self.auc_roc_gan))
+        print('Precision: {:.4f}'.format(precision_gan))
+        print('Recall: {:.4f}'.format(recall_gan))
+        print('F1 score: {:.4f}'.format(f1_score_gan))
+        print('AUC-ROC socre: {:.4f}'.format(auc_roc_gan))
 
-    # visualize results
-    def visualize(self):
-        # Plot ROC curve
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.plot(self.fpr, self.tpr, label=f'AUC = {self.auc_roc_gan:.4f}')
-        ax.set_xlabel('False Positive Rate')
-        ax.set_ylabel('True Positive Rate')
-        ax.set_title('Receiver Operating Characteristic (ROC) Curve')
-        ax.legend(loc='lower right')
-        st.pyplot(fig)
-
-        # true v predicted labels
-        st.divider()
-        fig, ax = plt.subplots(figsize=(12, 8), dpi=100)
-        ax.plot(self.y_true, label='True Labels', color='blue', linestyle='-.')
-        ax.plot(self.y_pred, label='Predicted Labels', color='yellow')
-        ax.set_xlabel('Time Step')
-        ax.set_ylabel('Label (0: Normal, 1: Anomalous)')
-        ax.set_title('True vs. Predicted Labels')
-        ax.legend(loc=(1.05, 0.5))
-        st.pyplot(fig)
-        
-        # confusion matrix
-        st.divider()
-        conf_matrix = metrics.confusion_matrix(self.y_true, self.y_pred)
-        disp = metrics.ConfusionMatrixDisplay(confusion_matrix=conf_matrix)
-        fig, ax = plt.subplots(figsize=(8, 6))
-        disp.plot(ax=ax)
-        plt.title('Confusion Matrix')
-        st.pyplot(fig)
-
-# if __name__ == '__main__':
-#     # df = pd.read_csv(filename, usecols=lambda col:col != 'Class')
-#     X_data = dataframe[:, :-1]
-#     df_shape = len(X_data.columns)
-#     y_true = dataframe[:, -1]
-
-#     tmp = len(X_data)
-#     df = X_data.astype('float32')
-#     df = np.array(df)
-
-#     train_size = int(tmp * 0.7)
-#     test_size = tmp
-#     test_data = df
-#     train_data = []
-
-#     for i in range(train_size):
-#         train_data.append(df[i])
-#     train_data = np.array(train_data)
-
-#     gan = GAN()
-#     gan.train(epochs=50, batch_size=32)
-#     gan.test()
-#     gan.visualize()
+        return self.y_true, y_pred, fpr, tpr, auc_roc_gan
