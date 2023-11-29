@@ -9,3 +9,4 @@ seaborn
 tensorflow
 keras
 scikit-learn
+pyod
