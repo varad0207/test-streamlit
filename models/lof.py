@@ -1,59 +1,69 @@
 import streamlit as st
-import numpy as np
-import pandas as pd
 
-from models.gan import GAN
-from models.lof import lof
+import matplotlib.pyplot as plt
 
-def load_data_for_train_test(df):
-    X_data = df.iloc[:, :-1]
-    df_shape = len(X_data.columns)
-    y_true = df.iloc[:, -1]
+from pyod.models.lof import LOF
 
-    tmp = len(X_data)
-    df = X_data.astype('float32')
-    df = np.array(df)
+from sklearn import metrics
 
-    train_size = int(tmp * 0.7)
-    test_data = df
-    train_data = []
+class lof():
+    def __init__(self, train_data, test_data, y_true) -> None:
+        self.train_data = train_data
+        self.test_data = test_data
+        self.y_true = y_true
 
-    for i in range(train_size):
-        train_data.append(df[i])
-    train_data = np.array(train_data)
-
-    return train_data, test_data, y_true, df_shape
-
-def visualize_res(selected_model, uploaded_file):
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
-        train_data, test_data, y_true, df_shape = load_data_for_train_test(df)
-        with st.expander('See Dataset'):
-            st.caption('Uploaded Dataset')
-            st.table(df)
-
-        if selected_model == 'GAN':
-            gan_model = GAN(df_shape, train_data, test_data, y_true)
-            gan_model.train(epochs=50, batch_size=32)
-            gan_model.test()
-            gan_model.visualize()
-
-        elif selected_model == 'LOF':
-            lof_model = lof(train_data, test_data, y_true)
-            lof_model.visualize()
+        print('training', len(self.train_data))
+        print('testing', len(self.test_data))
 
 
-st.title('Hello Scientists')
-st.divider()
-st.header('Explore the World of Anomaly Detection')
+        clf = LOF()
+        clf.fit(self.train_data)
+        self.y_pred = clf.fit_predict(self.test_data)
 
+        for i in range(len(self.y_pred)):
+            if self.y_pred[i] == 1:
+                self.y_pred[i] = 0
+            else:
+                self.y_pred[i] = 1
 
-# dropdown
-selected_model = st.selectbox('Choose a Model', 
-                              ['GAN', 'LOF'],
-                              index=None,
-                                placeholder='Select a model',)
-uploaded_file = st.file_uploader('Upload a dataset')
+    def visualize(self):
+        precision_lof = metrics.precision_score(self.y_true, self.y_pred)
+        recall_lof = metrics.recall_score(self.y_true, self.y_pred)
+        f1_score_lof = metrics.f1_score(self.y_true, self.y_pred)
+        fpr, tpr, _ = metrics.roc_curve(self.y_true, self.y_pred)
+        auc_roc_lof = metrics.auc(fpr, tpr)
 
-if st.button('Visualize'):
-    visualize_res(selected_model, uploaded_file)
+        print("Metrics: ")
+        print('Precision: {:.4f}'.format(precision_lof))
+        print('Recall: {:.4f}'.format(recall_lof))
+        print('F1 score: {:.4f}'.format(f1_score_lof))
+        print('AUC-ROC socre: {:.4f}'.format(auc_roc_lof))
+
+        # Plot ROC curve
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.plot(fpr, tpr, label=f'AUC = {auc_roc_lof:.4f}')
+        ax.set_xlabel('False Positive Rate')
+        ax.set_ylabel('True Positive Rate')
+        ax.set_title('Receiver Operating Characteristic (ROC) Curve')
+        ax.legend(loc='lower right')
+        st.pyplot(fig)
+
+        # true v predicted labels
+        st.divider()
+        fig, ax = plt.subplots(figsize=(12, 8), dpi=100)
+        ax.plot(self.y_true, label='True Labels', color='blue', linestyle='-.')
+        ax.plot(self.y_pred, label='Predicted Labels', color='yellow')
+        ax.set_xlabel('Time Step')
+        ax.set_ylabel('Label (0: Normal, 1: Anomalous)')
+        ax.set_title('True vs. Predicted Labels')
+        ax.legend(loc=(1.05, 0.5))
+        st.pyplot(fig)
+        
+        # confusion matrix
+        st.divider()
+        conf_matrix = metrics.confusion_matrix(self.y_true, self.y_pred)
+        disp = metrics.ConfusionMatrixDisplay(confusion_matrix=conf_matrix)
+        fig, ax = plt.subplots(figsize=(8, 6))
+        disp.plot(ax=ax)
+        plt.title('Confusion Matrix')
+        st.pyplot(fig)
